@@ -77,7 +77,7 @@ int main (int argc, char* argv[]) {
             cudaDeviceSynchronize();
 
             //gpu -> cpu for visualization
-            Mat output_EROSION(height, width, CV_8UC1); //type=CV_32SC1 se lo voglio fare a int
+            Mat output_EROSION(height, width, CV_8UC1); 
             Mat output_DILATION(height, width, CV_8UC1);
             Mat output_OPENING(height, width, CV_8UC1);
             Mat output_CLOSING(height, width, CV_8UC1);
@@ -92,7 +92,7 @@ int main (int argc, char* argv[]) {
             csvFile << sizes[i] << "," << time.count() << endl;
 
             /*cout << "Example is using: \n \t image size: " << width << "x" << height << "\n \t probe type: MORPH_ELLIPSE" << endl;
-            cout << "Time to perform Erosion, Dilation, Opening and Closing: " << time.count() << " microsec." << endl;
+            cout << "Time to perform Erosion, Dilation, Opening and Closing: " << time.count() << " millisec." << endl;
             cout << "\n\n" << endl;*/
 
             cudaFree(d_input);
