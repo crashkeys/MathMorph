@@ -13,7 +13,7 @@ using namespace cv;
 __constant__ uchar ELEM[ELEM_SIZE*ELEM_SIZE];
 
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__, __LINE__, #value, value)
-
+bool naive = false;
 
 static void CheckCudaErrorAux(const char *file, unsigned line, const char *statement, cudaError_t err) {
     if (err == cudaSuccess) {
@@ -27,14 +27,14 @@ static void CheckCudaErrorAux(const char *file, unsigned line, const char *state
 
 int main (int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LogLevel::LOG_LEVEL_SILENT);
-    Mat inputMat = imread("./images/arcane.jpg", cv::IMREAD_GRAYSCALE);
-    Mat element = cv::getStructuringElement(cv::MORPH_CROSS, Size(ELEM_SIZE, ELEM_SIZE));
+    Mat inputMat = imread("./images/yourimage.jpg", cv::IMREAD_GRAYSCALE);
+    Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, Size(ELEM_SIZE, ELEM_SIZE));
 
     uchar hostElem[ELEM_SIZE*ELEM_SIZE];
     std::memcpy(hostElem, element.data, ELEM_SIZE*ELEM_SIZE * sizeof(uchar));
 
-    ofstream csvFile("C:\\Users\\Irene\\Desktop\\graphs\\ES2\\arcane.csv");
-    csvFile << "size , time" << endl;
+    fstream csvFile("path/to/file.csv");
+    csvFile << "blocksize , time" << endl;
 
     int width = inputMat.cols;
     int height = inputMat.rows;
@@ -66,18 +66,29 @@ int main (int argc, char* argv[]) {
             dim3 dimBlock(blockSize, blockSize);
             dim3 dimGrid((width + blockSize - 1)/blockSize , (height + blockSize - 1)/blockSize);
 
-            /*EROSION AND DILATION*/
-            erode<<<dimGrid, dimBlock>>>(d_input, d_output_EROSION, width, height);
-            dilate<<<dimGrid, dimBlock>>>(d_input, d_output_DILATION, width, height);
-            cudaDeviceSynchronize();
+            if(naive) {
+                /*EROSION AND DILATION*/
+                erode<<<dimGrid, dimBlock>>>(d_input, d_output_EROSION, width, height);
+                dilate<<<dimGrid, dimBlock>>>(d_input, d_output_DILATION, width, height);
+                cudaDeviceSynchronize();
+                /*OPENING AND CLOSING*/
+                erode<<<dimGrid, dimBlock>>>(d_output_DILATION, d_output_CLOSING, width, height);
+                dilate<<<dimGrid, dimBlock>>>(d_output_EROSION, d_output_OPENING, width, height);
+                cudaDeviceSynchronize();
+            }
 
-            /*OPENING AND CLOSING*/
-            erode<<<dimGrid, dimBlock>>>(d_output_DILATION, d_output_CLOSING, width, height);
-            dilate<<<dimGrid, dimBlock>>>(d_output_EROSION, d_output_OPENING, width, height);
-            cudaDeviceSynchronize();
+            else {
+                size_t sharedArray = (blockSize+ELEM_SIZE-1)*(blockSize+ELEM_SIZE-1)*sizeof(uchar);
+                //outputs at the same time erosion and dilation
+                MM_ops_shared<<<dimGrid, dimBlock, sharedArray>>>(d_input, d_output_EROSION, d_output_DILATION, width, height);
+
+                //opening and closing
+                MM_ops_shared<<<dimGrid, dimBlock, sharedArray>>>(d_output_EROSION, d_output_OPENING, nullptr, width, height, true);
+                MM_ops_shared<<<dimGrid, dimBlock, sharedArray>>>(d_output_DILATION, d_output_CLOSING, nullptr, width, height, false);
+            }
 
             //gpu -> cpu for visualization
-            Mat output_EROSION(height, width, CV_8UC1); 
+            Mat output_EROSION(height, width, CV_8UC1);
             Mat output_DILATION(height, width, CV_8UC1);
             Mat output_OPENING(height, width, CV_8UC1);
             Mat output_CLOSING(height, width, CV_8UC1);
@@ -89,20 +100,18 @@ int main (int argc, char* argv[]) {
             auto end = std::chrono::system_clock::now();
             auto time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-            csvFile << sizes[i] << "," << time.count() << endl;
-
-            /*cout << "Example is using: \n \t image size: " << width << "x" << height << "\n \t probe type: MORPH_ELLIPSE" << endl;
-            cout << "Time to perform Erosion, Dilation, Opening and Closing: " << time.count() << " millisec." << endl;
-            cout << "\n\n" << endl;*/
+            csvFile << blockSize << "," << time.count() << endl;
 
             cudaFree(d_input);
             cudaFree(d_output_EROSION);
             cudaFree(d_output_DILATION);
             cudaFree(d_output_OPENING);
             cudaFree(d_output_CLOSING);
+
             reps++;
         }
     }
+
 
     /*//show
     imshow("Erosion Result", output_EROSION);
