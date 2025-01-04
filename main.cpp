@@ -18,12 +18,12 @@ int main( int argc, char** argv ) {
     setLogLevel(utils::logging::LogLevel::LOG_LEVEL_SILENT);
 
     //String img_name = "gsimage.jpg";
-    Mat frame = imread("./images/cityanime.jpg", IMREAD_GRAYSCALE);
-    Mat frameIn = imread("./images/cityanime.jpg", IMREAD_GRAYSCALE);
+    Mat frame = imread("./images/yourimage.jpg", IMREAD_GRAYSCALE);
+    Mat frameIn = imread("./images/yourimage.jpg", IMREAD_GRAYSCALE);
     Mat element =cv::getStructuringElement(MORPH_ELLIPSE, Size(probe_size,probe_size));
     copyMakeBorder(frame, frame, probe_size, probe_size, probe_size, probe_size, 0);
 
-    ofstream csvFile("C:\\Users\\Irene\\Desktop\\graphs\\ES2\\sequential\\arcane.csv");
+    ofstream csvFile("path/to/file.csv");
     csvFile << "size" << "time" << endl;
 
     int times = 0;
