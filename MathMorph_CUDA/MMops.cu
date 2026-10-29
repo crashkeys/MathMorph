@@ -141,7 +141,7 @@ __global__ void MM_ops_shared(uchar* d_input, uchar* d_output_first, uchar* d_ou
             d_output_first[row * width + col] = er_value;
             d_output_second[row * width + col] = dil_value;
         }
-        else //Otherwise perfom normal erosion and dilation
+        else 
         {
             if(opening==false)
                 d_output_first[row * width + col] = er_value; //closing
